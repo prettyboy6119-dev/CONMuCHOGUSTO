@@ -234,7 +234,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     result = int(result)
                 else:
                     result = round(result, 5)
-            await update.message.reply_text(f"```\n{text} = {result}\n```", parse_mode='Markdown')
+            await update.message.reply_text(f"🧮 Result:\n`{text} = {result}`", parse_mode='Markdown')
         else:
             await update.message.reply_text(
                 "📸 Please send me an image containing a QR code to decode.\n"
