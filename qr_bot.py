@@ -228,10 +228,13 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Normalize caret to power for user convenience
             normalized = text.replace('^', '**').replace('x', '*').replace('X', '*')
             result = _safe_eval_expr(normalized)
-            # Render as integer if whole number
-            if isinstance(result, float) and result.is_integer():
-                result = int(result)
-            await update.message.reply_text(f"🧮 Result: `{result}`", parse_mode='Markdown')
+            # Render as integer if whole number, otherwise round to 5 decimal places
+            if isinstance(result, float):
+                if result.is_integer():
+                    result = int(result)
+                else:
+                    result = round(result, 5)
+            await update.message.reply_text(f"```\n{text} = {result}\n```", parse_mode='Markdown')
         else:
             await update.message.reply_text(
                 "📸 Please send me an image containing a QR code to decode.\n"
