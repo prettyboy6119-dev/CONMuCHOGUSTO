@@ -1,6 +1,7 @@
 import logging
 import math
 import os
+import random
 from html import escape
 from io import BytesIO
 from PIL import Image
@@ -23,6 +24,17 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ENABLE_QREADER = os.getenv("ENABLE_QREADER", "").lower() in {"1", "true", "yes", "on"}
 _QREADER = None
+
+QR_CAPTION_PHRASES = (
+    "Con placer",
+    "Con mucho gusto",
+    "Con todo el gusto",
+    "Con muchísimo gusto",
+    "Será un placer",
+    "Encantado de ayudar",
+    "A la orden",
+)
+TELEGRAM_CAPTION_LIMIT = 1024
 
 def _safe_eval_expr(expr: str) -> float:
     """Safely evaluate a basic arithmetic expression using AST.
@@ -214,6 +226,18 @@ def qr_png_from_text(text: str):
     return output
 
 
+def qr_caption(text: str, phrase: str = None):
+    """Build a friendly caption and return overflow content separately."""
+    phrase = phrase or random.choice(QR_CAPTION_PHRASES)
+    prefix = f"{phrase} ✨\n\n"
+    if len(prefix) + len(text) <= TELEGRAM_CAPTION_LIMIT:
+        return prefix + text, None
+
+    suffix = "\n\n…"
+    available = TELEGRAM_CAPTION_LIMIT - len(prefix) - len(suffix)
+    return prefix + text[:available] + suffix, text
+
+
 async def reply_qr(update: Update, text: str):
     text = text.strip()
     if not text:
@@ -224,12 +248,18 @@ async def reply_qr(update: Update, text: str):
         return
 
     qr_image = qr_png_from_text(text)
+    caption, overflow_content = qr_caption(text)
     # The source is a large, integer-scaled PNG, so it remains readable after
     # Telegram renders it as an inline photo instead of a downloadable file.
     await update.message.reply_photo(
         photo=qr_image,
-        caption="✅ QR code generated",
+        caption=caption,
     )
+    if overflow_content:
+        await update.message.reply_text(
+            f"Full QR content:\n<pre>{escape(overflow_content)}</pre>",
+            parse_mode="HTML",
+        )
 
 
 def decoded_qr_reply_markup(content: str):
