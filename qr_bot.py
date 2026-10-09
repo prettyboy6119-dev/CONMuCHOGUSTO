@@ -224,12 +224,11 @@ async def reply_qr(update: Update, text: str):
         return
 
     qr_image = qr_png_from_text(text)
-    # Documents are delivered byte-for-byte; Telegram recompresses photos and
-    # can soften the hard module edges that QR codes rely on.
-    await update.message.reply_document(
-        document=qr_image,
-        filename="qr.png",
-        caption="✅ QR code generated (lossless PNG)",
+    # The source is a large, integer-scaled PNG, so it remains readable after
+    # Telegram renders it as an inline photo instead of a downloadable file.
+    await update.message.reply_photo(
+        photo=qr_image,
+        caption="✅ QR code generated",
     )
 
 
