@@ -227,20 +227,25 @@ def qr_png_from_text(text: str):
     return output
 
 
-def qr_caption(text: str, phrase: str = None):
-    """Build an HTML caption ending in a friendly link to the bot."""
+def linked_bot_phrase(phrase: str = None):
+    """Return a randomized friendly phrase linked to this Telegram bot."""
     phrase = phrase or random.choice(QR_CAPTION_PHRASES)
-    linked_phrase = (
+    return phrase, (
         f'<a href="{escape(BOT_PUBLIC_URL, quote=True)}">'
         f"{escape(phrase)} ✨</a>"
     )
+
+
+def qr_caption(text: str, phrase: str = None):
+    """Build a copyable HTML caption ending in a friendly bot link."""
+    phrase, linked_phrase = linked_bot_phrase(phrase)
     visible_footer = f"\n\n{phrase} ✨"
     if len(text) + len(visible_footer) <= TELEGRAM_CAPTION_LIMIT:
-        return f"{escape(text)}\n\n{linked_phrase}", None, None
+        return f"<code>{escape(text)}</code>\n\n{linked_phrase}", None, None
 
     suffix = "\n\n…"
     available = TELEGRAM_CAPTION_LIMIT - len(suffix)
-    return escape(text[:available]) + suffix, text, linked_phrase
+    return f"<code>{escape(text[:available])}</code>{suffix}", text, linked_phrase
 
 
 async def reply_qr(update: Update, text: str):
@@ -263,7 +268,7 @@ async def reply_qr(update: Update, text: str):
     )
     if overflow_content:
         await update.message.reply_text(
-            f"Full QR content:\n<pre>{escape(overflow_content)}</pre>\n\n{overflow_footer}",
+            f"<code>{escape(overflow_content)}</code>\n\n{overflow_footer}",
             parse_mode="HTML",
             disable_web_page_preview=True,
         )
@@ -284,18 +289,11 @@ def decoded_qr_reply_markup(content: str):
     )
 
 
-async def reply_decoded_result(message, result, heading="✅ QR Code decoded successfully!"):
+async def reply_decoded_result(message, result):
     content = result["data"]
-    safe_content = escape(content)
-    response = (
-        f"{heading}\n\n"
-        f"Type: {escape(str(result['type']))}\n"
-        f"Reader: {escape(str(result['source']))}\n"
-        f"Content:\n<code>{safe_content}</code>"
-    )
+    _, linked_phrase = linked_bot_phrase()
+    response = f"<code>{escape(content)}</code>\n\n{linked_phrase}"
     reply_markup = decoded_qr_reply_markup(content)
-    if reply_markup is None and len(content) > 256:
-        response += "\n<i>Tap or long-press the code-formatted content above to copy it.</i>"
 
     await message.reply_text(
         response,
@@ -604,12 +602,8 @@ async def process_image(update: Update, image_data):
         if len(results) == 1:
             await reply_decoded_result(update.message, results[0])
         else:
-            for i, result in enumerate(results, 1):
-                await reply_decoded_result(
-                    update.message,
-                    result,
-                    heading=f"✅ QR Code #{i} of {len(results)}",
-                )
+            for result in results:
+                await reply_decoded_result(update.message, result)
     else:
         await update.message.reply_text(
             "❌ No QR codes found in the image.\n\n"
