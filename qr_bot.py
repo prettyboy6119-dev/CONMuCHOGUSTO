@@ -92,6 +92,14 @@ def _safe_eval_expr(expr: str) -> float:
 
 _MATH_TOKEN_RE = re.compile(r"^[\s\d\.+\-*/%()xX×÷,^]+$")
 _BOT_MENTION_RE = re.compile(r"@([A-Za-z0-9_]{5,32})\b")
+_RELATIVE_PERCENT_RE = re.compile(
+    r"^(?P<base>.+)(?P<operator>[+-])\s*"
+    r"(?P<percent>(?:\d+(?:\.\d*)?|\.\d+))\s*%$"
+)
+_POSTFIX_PERCENT_RE = re.compile(
+    r"(?P<value>(?:\d+(?:\.\d*)?|\.\d+))\s*%"
+    r"(?=\s*(?:$|[()+\-*/]))"
+)
 
 def looks_like_math(text: str) -> bool:
     """Heuristic: text contains only math tokens and at least one operator."""
@@ -185,8 +193,34 @@ def format_calculation_result(expression: str, result):
     return f"{expression} = {result}"
 
 
+def normalize_math_expression(expression: str):
+    """Translate user-friendly operators and calculator-style percentages."""
+    normalized = (
+        expression.replace('^', '**')
+        .replace('x', '*')
+        .replace('X', '*')
+        .replace('×', '*')
+        .replace('÷', '/')
+        .replace('–', '-')
+        .replace('−', '-')
+        .strip()
+    )
+
+    relative_percent = _RELATIVE_PERCENT_RE.match(normalized)
+    if relative_percent:
+        base = normalize_math_expression(relative_percent.group("base"))
+        operator = relative_percent.group("operator")
+        percent = relative_percent.group("percent")
+        return f"(({base}) {operator} (({base}) * ({percent} / 100)))"
+
+    return _POSTFIX_PERCENT_RE.sub(
+        lambda match: f"({match.group('value')} / 100)",
+        normalized,
+    )
+
+
 async def reply_calculation(update: Update, expression: str):
-    normalized = expression.replace('^', '**').replace('x', '*').replace('X', '*')
+    normalized = normalize_math_expression(expression)
     result = _safe_eval_expr(normalized)
     response = escape(format_calculation_result(expression, result))
     await update.message.reply_text(f"<code>{response}</code>", parse_mode="HTML")
@@ -485,6 +519,7 @@ Calculator:
 • In group chats, mention me with the expression, for example: `@BotUsername 12*(3+4)/2`.
 • If group privacy mode is enabled, use `/calc@BotUsername 12*(3+4)/2`.
 • Supported operators: +, -, *, /, %, **, //, parentheses, and unary +/-. Caret (^) is treated as power.
+• Percentage shortcuts: `100+5%` = 105, `100-5%` = 95, and `100*5%` = 5.
 
 QR generator:
 • Use `/qr some text or link` and I'll send back a QR code image.
