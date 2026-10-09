@@ -1,0 +1,16 @@
+[Unit]
+Description=QR Telegram Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/qr-bot
+EnvironmentFile=/opt/qr-bot/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/qr-bot/venv/bin/python /opt/qr-bot/qr_bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
