@@ -8,7 +8,7 @@ from PIL import Image
 import cv2
 import numpy as np
 from pyzbar.pyzbar import ZBarSymbol, decode
-from telegram import CopyTextButton, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from dotenv import load_dotenv
 import ast
@@ -274,31 +274,14 @@ async def reply_qr(update: Update, text: str):
         )
 
 
-def decoded_qr_reply_markup(content: str):
-    """Return Telegram's native one-tap copy button when content fits."""
-    if not content or len(content) > 256:
-        return None
-
-    return InlineKeyboardMarkup(
-        [[
-            InlineKeyboardButton(
-                "📋 Copy content",
-                copy_text=CopyTextButton(content),
-            )
-        ]]
-    )
-
-
 async def reply_decoded_result(message, result):
     content = result["data"]
     _, linked_phrase = linked_bot_phrase()
     response = f"<code>{escape(content)}</code>\n\n{linked_phrase}"
-    reply_markup = decoded_qr_reply_markup(content)
 
     await message.reply_text(
         response,
         parse_mode="HTML",
-        reply_markup=reply_markup,
         disable_web_page_preview=True,
     )
 
