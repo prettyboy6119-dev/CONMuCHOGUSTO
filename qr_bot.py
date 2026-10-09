@@ -291,11 +291,11 @@ async def reply_decoded_result(message, result, heading="✅ QR Code decoded suc
         f"{heading}\n\n"
         f"Type: {escape(str(result['type']))}\n"
         f"Reader: {escape(str(result['source']))}\n"
-        f"Content:\n<pre>{safe_content}</pre>"
+        f"Content:\n<code>{safe_content}</code>"
     )
     reply_markup = decoded_qr_reply_markup(content)
     if reply_markup is None and len(content) > 256:
-        response += "\n<i>Telegram limits one-tap copy buttons to 256 characters. Long-press the content above to copy it.</i>"
+        response += "\n<i>Tap or long-press the code-formatted content above to copy it.</i>"
 
     await message.reply_text(
         response,
