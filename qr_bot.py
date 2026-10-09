@@ -592,26 +592,32 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def process_image(update: Update, image_data):
-    await update.message.reply_text("🔍 Analyzing image for QR codes...")
-    
-    # Decode QR codes
-    qr_decoder = QRDecoder()
-    results = qr_decoder.decode_qr_from_image(image_data)
-    
-    if results:
-        if len(results) == 1:
-            await reply_decoded_result(update.message, results[0])
+    status_message = await update.message.reply_text("🔍 Analyzing image for QR codes...")
+
+    try:
+        # Decode QR codes
+        qr_decoder = QRDecoder()
+        results = qr_decoder.decode_qr_from_image(image_data)
+
+        if results:
+            if len(results) == 1:
+                await reply_decoded_result(update.message, results[0])
+            else:
+                for result in results:
+                    await reply_decoded_result(update.message, result)
         else:
-            for result in results:
-                await reply_decoded_result(update.message, result)
-    else:
-        await update.message.reply_text(
-            "❌ No QR codes found in the image.\n\n"
-            "Tips:\n"
-            "• Make sure the QR code is clearly visible\n"
-            "• Check that the image has good lighting\n"
-            "• Try sending a higher quality image"
-        )
+            await update.message.reply_text(
+                "❌ No QR codes found in the image.\n\n"
+                "Tips:\n"
+                "• Make sure the QR code is clearly visible\n"
+                "• Check that the image has good lighting\n"
+                "• Try sending a higher quality image"
+            )
+    finally:
+        try:
+            await status_message.delete()
+        except Exception as exc:
+            logger.debug("Could not delete QR analysis status message: %s", exc)
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
