@@ -22,6 +22,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+BOT_PUBLIC_URL = os.getenv("BOT_PUBLIC_URL", "https://t.me/conmuchogusto_bot")
 ENABLE_QREADER = os.getenv("ENABLE_QREADER", "").lower() in {"1", "true", "yes", "on"}
 _QREADER = None
 
@@ -227,15 +228,19 @@ def qr_png_from_text(text: str):
 
 
 def qr_caption(text: str, phrase: str = None):
-    """Build a friendly caption and return overflow content separately."""
+    """Build an HTML caption ending in a friendly link to the bot."""
     phrase = phrase or random.choice(QR_CAPTION_PHRASES)
-    prefix = f"{phrase} ✨\n\n"
-    if len(prefix) + len(text) <= TELEGRAM_CAPTION_LIMIT:
-        return prefix + text, None
+    linked_phrase = (
+        f'<a href="{escape(BOT_PUBLIC_URL, quote=True)}">'
+        f"{escape(phrase)} ✨</a>"
+    )
+    visible_footer = f"\n\n{phrase} ✨"
+    if len(text) + len(visible_footer) <= TELEGRAM_CAPTION_LIMIT:
+        return f"{escape(text)}\n\n{linked_phrase}", None, None
 
     suffix = "\n\n…"
-    available = TELEGRAM_CAPTION_LIMIT - len(prefix) - len(suffix)
-    return prefix + text[:available] + suffix, text
+    available = TELEGRAM_CAPTION_LIMIT - len(suffix)
+    return escape(text[:available]) + suffix, text, linked_phrase
 
 
 async def reply_qr(update: Update, text: str):
@@ -248,17 +253,19 @@ async def reply_qr(update: Update, text: str):
         return
 
     qr_image = qr_png_from_text(text)
-    caption, overflow_content = qr_caption(text)
+    caption, overflow_content, overflow_footer = qr_caption(text)
     # The source is a large, integer-scaled PNG, so it remains readable after
     # Telegram renders it as an inline photo instead of a downloadable file.
     await update.message.reply_photo(
         photo=qr_image,
         caption=caption,
+        parse_mode="HTML",
     )
     if overflow_content:
         await update.message.reply_text(
-            f"Full QR content:\n<pre>{escape(overflow_content)}</pre>",
+            f"Full QR content:\n<pre>{escape(overflow_content)}</pre>\n\n{overflow_footer}",
             parse_mode="HTML",
+            disable_web_page_preview=True,
         )
 
 
